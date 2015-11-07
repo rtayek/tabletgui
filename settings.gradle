@@ -1,0 +1,3 @@
+include ':app'
+//include ':tabletcore'
+//project(':tabletcore').projectDir = new File(settingsDir, '../../ray/dev/conradapps/tabletcore')
