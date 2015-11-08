@@ -62,11 +62,10 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         God.log.init();
         LoggingHandler.setLevel(Level.ALL);
-        God.home.init();
         home=new Home();
-        System.out.println(home.host+"/"+home.service);
-        getSocket=new Home.GetSocket(home.host,home.service);
-        new Thread(getSocket).start();
+        //System.out.println(home.host+"/"+home.service);
+       // getSocket=new GetSocket(home.host,home.service);
+       // new Thread(getSocket).start();
         init();
         System.out.println("tablet id is: "+tabletId);
         group=home.group().newGroup(); // clone the group
@@ -96,7 +95,7 @@ public class MainActivity extends Activity {
             return true;
         return super.onOptionsItemSelected(item);
     }
-    Home.GetSocket getSocket;
+    GetSocket getSocket;
     String android_id;
     Home home;
     Build build;

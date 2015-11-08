@@ -10,13 +10,15 @@ import android.widget.*;
 import com.tayek.audio.*;
 import com.tayek.tablet.gui.common.*;
 //import com.tayek.tablet.gui.android.*;
-import com.tayek.tablet.*;
+import com.tayek.tablet.model.*;
 import com.tayek.utilities.*;
 
 import java.io.*;
 import java.net.*;
 import java.util.*;
 import java.util.logging.*;
+// http://stackoverflow.com/questions/18153644/android-asynctask-and-threading
+// http://stephendnicholas.com/archives/42
 class Build implements View.OnClickListener, Observer {
     Build(final MainActivity activity) throws IOException, InterruptedException {
         this.activity=activity;
