@@ -6,12 +6,10 @@ import android.util.*;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
-//import com.tayek.tablet.gui.*;
-import com.tayek.audio.*;
+
+import com.tayek.tablet.*;
 import com.tayek.tablet.gui.common.*;
-//import com.tayek.tablet.gui.android.*;
 import com.tayek.tablet.model.*;
-import com.tayek.utilities.*;
 
 import java.io.*;
 import java.net.*;
@@ -19,25 +17,16 @@ import java.util.*;
 import java.util.logging.*;
 // http://stackoverflow.com/questions/18153644/android-asynctask-and-threading
 // http://stephendnicholas.com/archives/42
-class Build implements View.OnClickListener, Observer {
-    Build(final MainActivity activity) throws IOException, InterruptedException {
+class Build implements View.OnClickListener, Observer { // this gui adapter plus some!
+    Build(final MainActivity activity) {
         this.activity=activity;
         linearLayout=new LinearLayout(activity);
         linearLayout.setOrientation(LinearLayout.VERTICAL);
-        activity.tablet.client().start();
-        if(activity.tablet.client().socket()!=null) {
-            InetAddress inetAddress=activity.group.checkForInetAddress(activity.tabletId,activity.tablet.client().socket());
-            int address=inetAddress!=null?Utility.toInteger(inetAddress):0;
-            Message message=new Message(activity.group.groupId,activity.tabletId,Message.Type.start,address);
-            activity.tablet.client().send(message);
-        }
-        gui=new AndroidGui(activity.tablet,new Toaster() {
-            @Override
-            public void toast(String string) {
-                Toast.makeText(activity,string,Toast.LENGTH_LONG).show();
-            }
-        });
-        final GuiAdapterABC adapterFor1=new GuiAdapterABC(activity.tablet.model()) {
+        activity.tablet.start();
+        Message message=new Message(activity.group.groupId,activity.tabletId,Message.Type.startup,0);
+        activity.tablet.broadcast(message);
+        gui=new AndroidGui(activity.tablet,activity.toaster);
+        final GuiAdapterABC adapterFor1=new GuiAdapterABC(activity.tablet.group.model) {
             @Override
             public void setText(final int id,final String string) {
                 new Timer().schedule(new TimerTask() {
@@ -61,7 +50,7 @@ class Build implements View.OnClickListener, Observer {
                             @Override
                             public void run() {
                                 System.out.println("set "+id+" checked "+state);
-                                //((CheckBox)gui.idToButton.get(id)).setChecked(state);
+                                activity.buttons[id-1].setPressed(state);
                             }
                         });
                     }
@@ -70,19 +59,18 @@ class Build implements View.OnClickListener, Observer {
         };
         gui.adapter=adapterFor1;
         logger.info("set gui adapter to: "+gui.adapter);
-        activity.tablet.model().addObserver(this);
-        activity.tablet.model().addObserver(ModelObserver.instance);
+        activity.tablet.group.model.addObserver(this);
         linearLayout=build();
     }
     int color(int id,boolean state) {
-        bg[0]=fg[0]=(float)((id-1)*360./activity.tablet.model().buttons);
+        bg[0]=fg[0]=(float)((id-1)*360./activity.tablet.group.model.buttons);
         return state?Color.HSVToColor(fg):Color.HSVToColor(bg);
     }
     LinearLayout build() {
         DisplayMetrics m=activity.getResources().getDisplayMetrics();
         System.out.println(m);
         double w=m.widthPixels*.99;
-        double h=m.widthPixels*.99/activity.tablet.model().buttons;
+        double h=m.widthPixels*.99/activity.tablet.group.model.buttons;
         System.out.println(w+" by +"+h);
         ViewGroup.LayoutParams lp=new ViewGroup.LayoutParams((int)w,(int)h);
         System.out.println(lp);
@@ -90,8 +78,12 @@ class Build implements View.OnClickListener, Observer {
         // http://stackoverflow.com/a/11469528/51292
         // http://android-coding.blogspot.in/2011/05/resize-button-programmatically-using.html
         layout.setOrientation(LinearLayout.VERTICAL);  //Can also be done in xml by android:orientation="vertical"
-        for(int i=1;i<=activity.tablet.model().buttons;i++) {
+        final TextView top=new TextView(activity);
+        top.setText("top");
+        layout.addView(top);
+        for(int i=1;i<=activity.tablet.group.model.buttons;i++) {
             Button button=new Button(activity);
+            activity.buttons[i-1]=button;
             button.setLayoutParams(new ViewGroup.LayoutParams(lp));
             button.setText("Button "+i);
             button.setId(i);
@@ -99,39 +91,32 @@ class Build implements View.OnClickListener, Observer {
             layout.addView(button);
             button.setOnClickListener(this);
             gui.idToButton.put(i,button);
-            //button.setOnTouchListener(otl);
         }
+        activity.bottom=new TextView(activity);
+        activity.bottom.setText("bottom");
+        ScrollView scroller=new ScrollView(activity);
+        scroller.addView(activity.bottom);
+        layout.addView(scroller);
         return layout;
-        //a.setContentView(layout);
-        //setContentView(R.layout.activity_main);
     }
     @Override
     public void onClick(final View v) {
         if(v instanceof Button) {
             System.out.println("click on "+v);
-            if(v instanceof CheckBox) {
-                logger.info("checkbox");
-                gui.onClick(new Integer(v.getId()),((CheckBox)v).isChecked());
-            } else {
-                Button button=(Button)v;
-                int id=button.getId();
-                System.out.println("button id "+id);
-                // was clicked, so supposedly state has changed
-                // but this is just a button, so it has not!
-                // so assume that is was consistent with the model
-                // so it now should be the opposite
-                // so fake it
-                boolean b=!activity.tablet.model().state(id);
-                gui.onClick(id,b);
-                int c=color(id,b);
-                ((Button)v).setBackgroundColor(c);
-            }
+            Button button=(Button)v;
+            int id=button.getId();
+            boolean state=button.isPressed();
+            activity.tablet.group.model.setState(id,state);
+            System.out.println("button id "+id);
+            int c=color(id,state);
+            ((Button)v).setBackgroundColor(c);
+            God.toaster.toast(activity.buttonsToString());
         } else
             logger.warning("not a button!");
     }
     @Override
     public void update(Observable o,Object hint) {
-        if(o==activity.tablet.model()) {
+        if(o==activity.tablet.group.model) {
             if(gui.adapter!=null)
                 gui.adapter.update(o,hint);
             else
@@ -149,7 +134,7 @@ class Build implements View.OnClickListener, Observer {
     }
     float[] bg=new float[3];
     {
-        bg[1]=.6f;
+        bg[1]=.7f;
         bg[2]=.6f;
     }
     final Logger logger=Logger.getLogger(getClass().getName());

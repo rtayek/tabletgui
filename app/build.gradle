@@ -26,9 +26,9 @@ android {
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
 dependencies {
-    compile "com.android.support:appcompat-v7:18.0.+"
+    // compile "com.android.support:appcompat-v7:18.0.+"
     //compile project(':tabletcore')
     compile fileTree(include: ['*.jar'], dir: 'libs')
     //compile files('libs/tabletcore-0.0.jar')
-    compile files('libs/tablet.jar')
+    compile files('libs/sablet.jar')
 }

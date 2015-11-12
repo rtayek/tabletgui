@@ -6,6 +6,7 @@ import android.net.*;
 import android.os.*;
 import android.provider.Settings.*;
 import android.view.*;
+import android.widget.*;
 
 import com.tayek.tablet.*;
 import com.tayek.tablet.gui.common.*;
@@ -34,47 +35,60 @@ public class MainActivity extends Activity {
         for(Map.Entry<Object,Object> entry : properties.entrySet())
             logger.info(entry.getKey()+"="+entry.getValue());
         android_id=Secure.getString(getContentResolver(),Secure.ANDROID_ID);
-        logger.info("android id: "+android_id);
+        logger.info("android id: '"+android_id+"'");
         System.out.println("isNetworkAvailable: "+isNetworkAvailable());
-        Character last=android_id.charAt(android_id.length()-1);
-       tabletId=null;
-        switch(last) { // fix these for the fires
-            case 'd': // laurie's tab s
-                tabletId=1;
-                break;
-            case '4': // conrad's nexus 7
-                tabletId=2;
-                break;
-            default:
-                tabletId=3;
-                break;
-        }
+        tabletId=null;
         if(android_id.equals("7643fc99c2f8eb5c"))
-            tabletId=1; // conrads
-        if(android_id.equals("fa37f2329a84e09d"))
-            tabletId=2; // rays 2'nd
-        else tabletId=3;
-
+            tabletId=1; // conrad's fire
+        else if(android_id.equals("fa37f2329a84e09d"))
+            tabletId=2; // ray's 2'nd fire
+        else if(android_id.equals("6f9a6936f633542a"))
+            tabletId=99; // rays nexus 4
+        else
+            tabletId=3;
     }
-    @Override
+    public String buttonsToString() {
+        String s="{";
+            for(int i=0;i<tablet.group.model.buttons;i++)
+                s+=buttons[i].isPressed()?'T':"F";
+            s+='}';
+            return s;
+        }
+
+        @Override
     protected void onCreate(Bundle savedInstanceState) {
+        God.log.init();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        God.log.init();
         LoggingHandler.setLevel(Level.ALL);
-        home=new Home();
-        //System.out.println(home.host+"/"+home.service);
-       // getSocket=new GetSocket(home.host,home.service);
-       // new Thread(getSocket).start();
         init();
-        System.out.println("tablet id is: "+tabletId);
-        group=home.group().newGroup(); // clone the group
-        try {
-            tablet=group.new Tablet(tabletId);
-            build=new Build(this);
-        } catch(Exception e) {
-            e.printStackTrace();
+        if(true) {
+            God.toaster=new Toaster() {
+                @Override
+                public void toast(final String string) {
+                    strings.add(string);
+                    if(strings.size()>n)
+                        strings.remove(0);
+                    bottom.post(new Runnable() {
+                        public void run() {
+                            String lines="";
+                            for(String string : strings)
+                                lines+=string+"\n";
+                            bottom.setText(lines);
+                        }
+                    });
+                }
+                int n=5;
+                final List<String> strings=new LinkedList();
+            };
         }
+        System.out.println("tablet id is: "+tabletId);
+        group=new Group(1,Group.tablets4);
+        tablet=new Tablet(group,tabletId);
+        buttons=new Button[tablet.group.model.buttons];
+        String h=group.idToHost().get(this.tabletId);
+        System.out.println("host="+h);
+        build=new Build(this);
         setContentView(build.linearLayout);
     }
     @Override
@@ -95,13 +109,19 @@ public class MainActivity extends Activity {
             return true;
         return super.onOptionsItemSelected(item);
     }
-    GetSocket getSocket;
     String android_id;
-    Home home;
     Build build;
     Group group; // thc clone for the tablet
     Integer tabletId;
-    Group.Tablet tablet;
+    Tablet tablet;
+    Button[] buttons;
     MediaPlayer mediaPlayer;
+    TextView bottom;
+    Toaster toaster=new Toaster() {
+        @Override
+        public void toast(String string) {
+            Toast.makeText(MainActivity.this,string,Toast.LENGTH_SHORT).show();
+        }
+    };
     final Logger logger=Logger.getLogger(getClass().getName());
 }
